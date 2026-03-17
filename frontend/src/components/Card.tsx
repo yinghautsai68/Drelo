@@ -1,11 +1,13 @@
-import React from 'react'
 import Tag from './Tag'
 
-const Card = () => {
+interface CardProps {
+    label: string
+}
+const Card = ({ label }: CardProps) => {
     return (
-        <div className="flex flex-col w-full h-40 border rounded-xl">
+        <div className="flex flex-col w-full h-30 border rounded-xl">
             {/*Cover*/}
-            <div className="w-full h-[150px] bg-blue-500 rounded-tl-xl rounded-tr-xl">
+            <div className="w-full h-[50px] bg-blue-500 rounded-tl-xl rounded-tr-xl">
 
             </div>
 
@@ -21,7 +23,7 @@ const Card = () => {
                     {/*Goal*/}
                     <div className="flex flex-row items-center gap-1">
                         <div className="w-5 h-5 border rounded-full bg-white"></div>
-                        <span className="text-white">Build Drelo</span>
+                        <span className="text-white">{label}</span>
                     </div>
                 </div>
 
