@@ -48,7 +48,12 @@ const Home = () => {
 
     const [mouseStart, setMouseStart] = useState<number | null>(null);
     const handleMouseStart = (e: React.MouseEvent) => {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT') {
+            return; // Don't prevent default, let the input focus!
+        }
         e.preventDefault();
+        console.log(e.clientX)
         if (!isMobile) {
             return;
         }
@@ -60,6 +65,7 @@ const Home = () => {
             return;
         }
         const diff = mouseStart - e.clientX;
+        console.log("diff", diff);
         if (diff > 50) handleNext();
         if (diff < -50) handlePrev();
         setMouseStart(null);
@@ -67,7 +73,7 @@ const Home = () => {
 
     const [isMobile, setIsMobile] = useState<boolean>(false);
     const checkScreenSize = () => {
-        if (window.innerWidth < 768) {
+        if (window.innerWidth <= 768) {
             setIsMobile(true)
         } else {
             setIsMobile(false)
@@ -140,16 +146,16 @@ const Home = () => {
     return (
         <div className="flex flex-col  w-full h-screen bg-gray-950">
             {/*Navbar*/}
-            <div className="flex flex-row justify-start items-center gap-2 w-full h-[10%]  pl-3 pt-4 py-3 bg-blue-500">
-                <div className="w-10 aspect-square bg-white"></div>
+            <div className="flex flex-row justify-start items-center gap-2 w-full h-[7%]  pl-3  py-4 bg-gray-950">
+                <div className="w-5 aspect-square bg-white"></div>
                 <span className="text-white font-semibold">Drelo</span>
-                <input type="text" className="w-[30%] border rounded-xl bg-white " />
+                <input type="text" className="w-[50%] lg:w-[30%] px-3 py-1  rounded-xl bg-white/20 focus:outline-none  " />
 
             </div>
 
 
             {/*Main*/}
-            <div className="flex flex-row items-start w-full h-[90%]  lg:px-10 lg:py-5  ">
+            <div className="flex flex-row items-start w-full h-[93%]    ">
                 {/*Inbox*/}
                 <div>
 
@@ -161,8 +167,8 @@ const Home = () => {
                 </div>
 
                 {/*Board*/}
-                <div className="flex flex-col w-full h-[95%] rounded-xl  ">
-                    <div className="flex flex-row items-center w-full h-[10%] px-5 gap-2 bg-blue-600 lg:rounded-tl-xl lg:rounded-tr-xl">
+                <div className="flex flex-col w-full h-[100%] rounded-xl  ">
+                    <div className="flex flex-row items-center w-full h-[8%] px-5 gap-2 bg-gray-900 lg:rounded-tl-xl lg:rounded-tr-xl">
                         <span className="text-xl text-white">My Board</span>
                         <div className=" flex flex-row gap-2 lg:hidden">
                             <button onClick={() => handlePrev()}>prev</button>
@@ -172,7 +178,7 @@ const Home = () => {
 
                     <DragDropContext onDragEnd={handleDragEnd}>
                         {/*View Container*/}
-                        <div className="relative  flex flex-row items-start w-full h-[90%] px-5 pt-5 pb-5  bg-gray-800  overflow-y-hidden overflow-x-hidden md:overflow-x-auto ">
+                        <div className="relative  flex flex-row items-start w-full h-[92%] px-5 pt-5 pb-5  bg-gray-800  overflow-y-hidden overflow-x-hidden md:overflow-x-auto ">
                             {/*Item Container*/}
                             {/*List*/}
 
@@ -181,8 +187,8 @@ const Home = () => {
                                 onTouchEnd={handleTouchEnd}
                                 onMouseDown={handleMouseStart}
                                 onMouseUp={handleMouseEnd}
-                                style={{ left: `calc(50% - ${translate}px)`, }}
-                                className={`absolute     flex flex-row items-center h-full   transition-all duration-400`}
+                                style={isMobile ? { left: `calc(50% - ${translate}px)` } : {}}
+                                className={`absolute     flex flex-row  items-start h-full pb-25 lg:pb-0   transition-all duration-400`}
                             >
                                 {
                                     Object.entries(lists).map(([id, cards]) => {
@@ -198,6 +204,8 @@ const Home = () => {
                     </DragDropContext>
                 </div>
             </div >
+
+
         </div >
     )
 }
