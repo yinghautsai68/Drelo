@@ -3,10 +3,7 @@ import { z } from "zod";
 
 
 export const createListSchema = z.object({
-    user_id: z.number(),
-    position: z.number(),
-    label: z.string(),
-    color: z.string()
+    label: z.string()
 });
 
 export const listIdParamSchema = z.object({

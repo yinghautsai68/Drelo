@@ -2,12 +2,7 @@ import { z } from "zod";
 
 export const createCardSchema = z.object({
     list_id: z.number(),
-    position: z.number(),
-
-    due_date: z.string(),
     label: z.string(),
-    status: z.string(),
-    color: z.string(),
 })
 
 export const getCardsSchema = z.object({
@@ -19,11 +14,10 @@ export const cardIdParamSchema = z.object({
 })
 
 export const editCardSchema = z.object({
-    list_id: z.number(),
-    position: z.number(),
-
-    due_date: z.string(),
-    label: z.string(),
-    status: z.string(),
-    color: z.string(),
+    list_id: z.number().optional(),
+    position: z.number().optional(),
+    due_date: z.string().optional(),
+    label: z.string().optional(),
+    status: z.string().optional(),
+    color: z.string().optional(),
 })

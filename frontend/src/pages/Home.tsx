@@ -3,8 +3,9 @@ import { use, useEffect, useState } from "react"
 import List from "../components/List"
 import { DragDropContext, } from "@hello-pangea/dnd";
 import type { DropResult } from "@hello-pangea/dnd";
+import type { CardType, ListType } from "../types/types";
 const Home = () => {
-
+    const [lists, setLists] = useState<ListType[]>([]);
 
     const [index, setIndex] = useState<number>(0);
     const width: number = 300;
@@ -58,7 +59,6 @@ const Home = () => {
             return;
         }
         setMouseStart(e.clientX);
-
     }
     const handleMouseEnd = (e: React.MouseEvent) => {
         if (mouseStart === null) {
@@ -90,24 +90,9 @@ const Home = () => {
 
     useEffect(() => { console.log(index, translate) }, [index, translate])
 
-    const [lists, setLists] = useState<{ [key: string]: { id: string, label: string }[] }>({
-        "list-1": [
-            { id: "1", label: "apple" },
-            { id: "2", label: "orange" },
-            { id: "3", label: "mango" }
-        ],
-        "list-2": [
-            { id: "4", label: "banana" }
-        ],
-        "list-3": [
-            { id: "5", label: "banana" }
-        ],
-        "list-4": [
-            { id: "6", label: "banana" }
-        ]
-    })
-    const handleDragEnd = (result: DropResult) => {
-        const { source, destination } = result;
+    const handleDragEnd = async (result: DropResult) => {
+        console.log(result);
+        const { source, destination, draggableId } = result;
 
         if (!destination) {
             return;
@@ -119,29 +104,78 @@ const Home = () => {
             return;
         }
 
-        const newLists = { ...lists };
-
-        const sourceList = [...newLists[source.droppableId]];
-        const destinationList = [...newLists[destination.droppableId]];
-
-        const [movedItem] = sourceList.splice(source.index, 1);
-
-        if (source.droppableId === destination.droppableId) {
-            sourceList.splice(destination.index, 0, movedItem);
-            newLists[source.droppableId] = sourceList;
-        }
-        if (source.droppableId != destination.droppableId) {
-            destinationList.splice(destination.index, 0, movedItem);
-
-            newLists[destination.droppableId] = destinationList;
-            newLists[source.droppableId] = sourceList;
+        const newLists = [...lists];
+        const sourceList = newLists.find(list => list.id === Number(source.droppableId));
+        const destinationList = newLists.find(list => list.id === Number(destination.droppableId));
+        if (!sourceList || !destinationList) {
+            return;
         }
 
+        const [movedCard] = sourceList.cards.splice(source.index, 1);
+
+        destinationList.cards.splice(destination.index, 0, movedCard);
 
         setLists(newLists);
+
+        try {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/cards/${draggableId}`, {
+                method: "PATCH",
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ list_id: Number(destination.droppableId), position: destination.index })
+            })
+            const result = await response.json();
+            if (!result.success) {
+                console.log(result.message);
+            }
+        } catch (error) {
+            console.log(error);
+        }
     };
 
+    const [isAdding, setIsAdding] = useState<boolean>(false);
+    const [newListTitle, setNewListTitle] = useState<string>("");
+    const handleAddList = async () => {
+        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/lists`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ label: newListTitle, cards: [] })
+        })
+        const result = await response.json();
 
+        setLists([...lists, { ...result.data, cards: [] }]); // result.data contains the real ID from DB
+        console.log(lists);
+        setIsAdding(false);
+        setNewListTitle("");
+    }
+
+    const fetchListCard = async () => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/listcard`, {
+                method: 'GET'
+            })
+            const result = await response.json();
+
+            if (!result.success) {
+                return console.log(result.message);
+            }
+            console.log(result.data)
+            setLists(result.data);
+        } catch (error) {
+            console.log(error);
+        }
+    };
+
+    useEffect(() => {
+        fetchListCard();
+    }, []);
+
+    const handleAddCardToList = (listId: number, newCard: CardType) => {
+        setLists((prev) => prev.map((list) => list.id === listId ? { ...list, cards: [...list.cards, newCard] } : list));
+    };
 
     return (
         <div className="flex flex-col  w-full h-screen bg-gray-950">
@@ -191,12 +225,36 @@ const Home = () => {
                                 className={`absolute     flex flex-row  items-start h-full pb-25 lg:pb-0   transition-all duration-400`}
                             >
                                 {
-                                    Object.entries(lists).map(([id, cards]) => {
+
+                                    lists.map((list, index) => {
                                         return (
-                                            <List key={id} id={id} cards={cards} />
+                                            <List key={index} id={list.id} label={list.label} cards={(list.cards ?? [])} color={list.color} position={list.position} isEditing={list.isEditing} handleAddCardToList={handleAddCardToList} />
                                         );
                                     })
+
                                 }
+                                {/* THE CREATOR: Show this input only when adding */}
+                                {isAdding ? (
+                                    <div className="w-[300px] px-2 flex-none">
+                                        <div className="bg-gray-800 p-4 rounded-xl">
+                                            <input
+                                                autoFocus
+                                                className="w-full p-2 bg-gray-950 text-white rounded"
+                                                value={newListTitle}
+                                                onChange={(e) => setNewListTitle(e.target.value)}
+                                                onBlur={handleAddList} // Save on click away
+                                                onKeyDown={(e) => e.key === 'Enter' && handleAddList()}
+                                            />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => setIsAdding(true)}
+                                        className="w-[300px] flex-none h-10 bg-white/10 text-white rounded-xl hover:bg-white/20"
+                                    >
+                                        + Add another list
+                                    </button>
+                                )}
                             </div>
 
 
@@ -205,7 +263,13 @@ const Home = () => {
                 </div>
             </div >
 
-
+            <div className="fixed bottom-0 flex flex-row justify-center items-center  w-full h-[10%] pb-10 ">
+                <div className="flex flex-row justify-center gap-5 border w-[90%] py-2 rounded-xl bg-gray-700   ">
+                    <button className="border">hotdog</button>
+                    <button onClick={() => handleAddList()} className="border">Add new List</button>
+                    <button className="border">hotdog</button>
+                </div>
+            </div>
         </div >
     )
 }

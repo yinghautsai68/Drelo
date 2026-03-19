@@ -5,7 +5,7 @@ import { db } from "./config/db";
 import authRoutes from "./modules/auth.routes";
 import listsRoutes from "./modules/lists.routes";
 import cardsRoutes from "./modules/cards.routes";
-
+import listCardRoutes from "./modules/listcard.routes";
 
 const app = express();
 
@@ -15,6 +15,7 @@ app.use(cors());
 app.use("/api/auth", authRoutes);
 app.use("/api/lists", listsRoutes);
 app.use("/api/cards", cardsRoutes);
+app.use("/api/listcard", listCardRoutes);
 
 app.listen(5000, () => {
     console.log("server is working!");

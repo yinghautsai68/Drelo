@@ -2,13 +2,14 @@ import type { Request, Response } from "express";
 import { cardIdParamSchema, createCardSchema, editCardSchema, getCardsSchema } from "./cards.schema";
 import { db } from "../config/db";
 
+
 export const createCard = async (req: Request, res: Response) => {
     const result = createCardSchema.safeParse(req.body);
     if (!result.success) {
         return res.status(400).json({ error: result.error });
     }
     try {
-        const { list_id, position, due_date, label, status, color } = result.data;
+        const { list_id, label } = result.data;
         const [list]: any = await db.query(
             "SELECT id FROM lists WHERE id = ?",
             [list_id]
@@ -17,12 +18,16 @@ export const createCard = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "List not found!" });
         }
 
-        await db.query(
-            "INSERT INTO cards (list_id, position, due_date, label, status, color) VALUES (?,?,?,?,?,?)",
-            [list_id, position, due_date, label, status, color]
+        const [insertResult]: any = await db.query(
+            "INSERT INTO cards (list_id, label) VALUES (?,?)",
+            [list_id, label]
+        );
+        const [newCard]: any = await db.query(
+            "SELECT * FROM cards WHERE id = ?",
+            [insertResult.insertId]
         );
 
-        res.status(201).json({ message: "Card created successfully!" });
+        res.status(201).json({ success: true, message: "Card created successfully!", data: newCard[0] });
 
     } catch (error) {
         console.log(error);
@@ -62,13 +67,22 @@ export const getCards = async (req: Request, res: Response) => {
 export const editCard = async (req: Request, res: Response) => {
     const result = cardIdParamSchema.safeParse(req.params);
     if (!result.success) {
-        return res.status(400).json({ error: result.error });
+        return res.status(400).json({ message: result.error });
     }
     const result2 = editCardSchema.safeParse(req.body);
     if (!result2.success) {
-        return res.status(400).json({ error: result.error });
+        return res.status(400).json({ message: result2.error });
     }
+
+    const formatDate = (date?: string | null) => {
+        if (!date) {
+            return null;
+        }
+        return date.slice(0, 19).replace("T", " ");
+    }
+
     try {
+
         const { id } = result.data;
         const { list_id, position, due_date, label, status, color } = result2.data;
 
@@ -81,10 +95,17 @@ export const editCard = async (req: Request, res: Response) => {
         }
 
         await db.query(
-            "UPDATE cards SET list_id = ?, position =?, due_date = ?, label =?, status = ?, color=? WHERE id = ?",
-            [list_id, position, due_date, label, status, color, id]
+            `UPDATE cards SET 
+            list_id = COALESCE(?, list_id), 
+            position = COALESCE(?, position), 
+            due_date = COALESCE(?, due_date), label = COALESCE(?,label), 
+            status = COALESCE(?,status),
+            color =COALESCE(?,color)  
+            WHERE id = ? `
+            ,
+            [list_id ?? null, position ?? null, formatDate(due_date) ?? null, label ?? null, status ?? null, color ?? null, id]
         );
-        res.status(200).json({ message: "Edited card successfully!" });
+        res.status(200).json({ success: true, message: "Edited card successfully!" });
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Server error!" });
