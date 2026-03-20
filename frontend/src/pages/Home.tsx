@@ -1,7 +1,7 @@
 import { use, useEffect, useState } from "react"
 
 import List from "../components/List"
-import { DragDropContext, } from "@hello-pangea/dnd";
+import { DragDropContext, Droppable, } from "@hello-pangea/dnd";
 import type { DropResult } from "@hello-pangea/dnd";
 import type { CardType, ListType } from "../types/types";
 const Home = () => {
@@ -53,11 +53,12 @@ const Home = () => {
         if (target.tagName === 'INPUT') {
             return; // Don't prevent default, let the input focus!
         }
-        e.preventDefault();
+
         console.log(e.clientX)
         if (!isMobile) {
             return;
         }
+        e.preventDefault();
         setMouseStart(e.clientX);
     }
     const handleMouseEnd = (e: React.MouseEvent) => {
@@ -92,7 +93,7 @@ const Home = () => {
 
     const handleDragEnd = async (result: DropResult) => {
         console.log(result);
-        const { source, destination, draggableId } = result;
+        const { draggableId, type, source, destination, } = result;
 
         if (!destination) {
             return;
@@ -104,33 +105,67 @@ const Home = () => {
             return;
         }
 
-        const newLists = [...lists];
-        const sourceList = newLists.find(list => list.id === Number(source.droppableId));
-        const destinationList = newLists.find(list => list.id === Number(destination.droppableId));
-        if (!sourceList || !destinationList) {
-            return;
-        }
+        if (type === 'COLUMN') {
+            const newLists = [...lists];
+            const [movedList] = newLists.splice(source.index, 1);
+            newLists.splice(destination.index, 0, movedList);
+            setLists(newLists)
 
-        const [movedCard] = sourceList.cards.splice(source.index, 1);
-
-        destinationList.cards.splice(destination.index, 0, movedCard);
-
-        setLists(newLists);
-
-        try {
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/cards/${draggableId}`, {
-                method: "PATCH",
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ list_id: Number(destination.droppableId), position: destination.index })
-            })
-            const result = await response.json();
-            if (!result.success) {
+            try {
+                const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/lists`, {
+                    method: "PATCH",
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        lists: newLists.map((list, index) => ({
+                            id: list.id,
+                            position: index
+                        }))
+                    })
+                })
+                const result = await response.json();
+                if (!result.success) {
+                    return console.log(result.message);
+                }
                 console.log(result.message);
+            } catch (error) {
+                console.log(error);
             }
-        } catch (error) {
-            console.log(error);
+        } else if (type === 'CARD') {
+            const newLists = [...lists];
+            const sourceList = newLists.find((list) => list.id === Number(source.droppableId.replace("list-", "")));
+            const destinationList = newLists.find((list) => list.id === Number(destination.droppableId.replace("list-", "")));
+            if (!sourceList || !destinationList) {
+                return;
+            }
+
+            const [movedCard] = sourceList.cards.splice(source.index, 1);
+            movedCard.list_id = destinationList.id;
+
+            destinationList.cards.splice(destination.index, 0, movedCard);
+
+            sourceList.cards.forEach((card, index) => { card.position = index; });
+            destinationList.cards.forEach((card, index) => { card.position = index; });
+            setLists(newLists);
+            try {
+                const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/cards/move`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ lists: newLists })
+                });
+                const result = await response.json();
+                if (!result.success) {
+                    return console.log(result.message);
+                }
+
+
+            } catch (error) {
+                console.log(error);
+            }
+
         }
     };
 
@@ -142,7 +177,7 @@ const Home = () => {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ label: newListTitle, cards: [] })
+            body: JSON.stringify({ label: newListTitle })
         })
         const result = await response.json();
 
@@ -151,10 +186,28 @@ const Home = () => {
         setIsAdding(false);
         setNewListTitle("");
     }
-
-    const fetchListCard = async () => {
+    /*
+        const fetchLists = async () => {
+            try {
+                const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/lists?user_id=1`, {
+                    method: 'GET'
+                })
+                const result = await response.json();
+    
+                if (!result.success) {
+                    return console.log(result.message);
+                }
+                console.log(result.data.map((list: ListType) => ({ ...list, cards: [] })))
+                setLists(result.data.map((list: ListType) => ({ ...list, cards: [] })));
+            } catch (error) {
+                console.log(error);
+            }
+        }
+        useEffect(() => { fetchLists() }, []);
+    */
+    const fetchListsWithCards = async () => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/listcard`, {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/listscards`, {
                 method: 'GET'
             })
             const result = await response.json();
@@ -162,17 +215,13 @@ const Home = () => {
             if (!result.success) {
                 return console.log(result.message);
             }
-            console.log(result.data)
+            console.log(result.message, result.data)
             setLists(result.data);
         } catch (error) {
             console.log(error);
         }
     };
-
-    useEffect(() => {
-        fetchListCard();
-    }, []);
-
+    useEffect(() => { fetchListsWithCards() }, [])
     const handleAddCardToList = (listId: number, newCard: CardType) => {
         setLists((prev) => prev.map((list) => list.id === listId ? { ...list, cards: [...list.cards, newCard] } : list));
     };
@@ -215,48 +264,59 @@ const Home = () => {
                         <div className="relative  flex flex-row items-start w-full h-[92%] px-5 pt-5 pb-5  bg-gray-800  overflow-y-hidden overflow-x-hidden md:overflow-x-auto ">
                             {/*Item Container*/}
                             {/*List*/}
-
-                            <div
-                                onTouchStart={handleTouchStart}
-                                onTouchEnd={handleTouchEnd}
-                                onMouseDown={handleMouseStart}
-                                onMouseUp={handleMouseEnd}
-                                style={isMobile ? { left: `calc(50% - ${translate}px)` } : {}}
-                                className={`absolute     flex flex-row  items-start h-full pb-25 lg:pb-0   transition-all duration-400`}
-                            >
+                            <Droppable droppableId="board" type="COLUMN" direction="horizontal">
                                 {
+                                    (provided) => (
+                                        <div
+                                            ref={provided.innerRef}
+                                            {...provided.droppableProps}
 
-                                    lists.map((list, index) => {
-                                        return (
-                                            <List key={index} id={list.id} label={list.label} cards={(list.cards ?? [])} color={list.color} position={list.position} isEditing={list.isEditing} handleAddCardToList={handleAddCardToList} />
-                                        );
-                                    })
 
-                                }
-                                {/* THE CREATOR: Show this input only when adding */}
-                                {isAdding ? (
-                                    <div className="w-[300px] px-2 flex-none">
-                                        <div className="bg-gray-800 p-4 rounded-xl">
-                                            <input
-                                                autoFocus
-                                                className="w-full p-2 bg-gray-950 text-white rounded"
-                                                value={newListTitle}
-                                                onChange={(e) => setNewListTitle(e.target.value)}
-                                                onBlur={handleAddList} // Save on click away
-                                                onKeyDown={(e) => e.key === 'Enter' && handleAddList()}
-                                            />
+                                            onTouchStart={handleTouchStart}
+                                            onTouchEnd={handleTouchEnd}
+                                            onMouseDown={handleMouseStart}
+                                            onMouseUp={handleMouseEnd}
+                                            style={isMobile ? { left: `calc(50% - ${translate}px)` } : {}}
+                                            className={`absolute     flex flex-row  items-start h-full pb-25 lg:pb-0   transition-all duration-400`}
+                                        >
+                                            {
+
+                                                lists.map((list, index) => {
+                                                    return (
+                                                        <List key={list.id} index={index} id={list.id} label={list.label} cards={(list.cards ?? [])} color={list.color} position={list.position} handleAddCardToList={handleAddCardToList} />
+                                                    );
+                                                })
+
+                                            }
+                                            {provided.placeholder}
+                                            {isAdding ? (
+                                                <div className="w-[300px] px-2 flex-none">
+                                                    <div className="bg-gray-800 p-4 rounded-xl">
+                                                        <input
+                                                            autoFocus
+                                                            className="w-full p-2 bg-gray-950 text-white rounded"
+                                                            value={newListTitle}
+                                                            onChange={(e) => setNewListTitle(e.target.value)}
+                                                            onBlur={handleAddList} // Save on click away
+                                                            onKeyDown={(e) => e.key === 'Enter' && handleAddList()}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => setIsAdding(true)}
+                                                    className="w-[300px] flex-none h-10 bg-white/10 text-white rounded-xl hover:bg-white/20"
+                                                >
+                                                    + Add another list
+                                                </button>
+                                            )}
+
                                         </div>
-                                    </div>
-                                ) : (
-                                    <button
-                                        onClick={() => setIsAdding(true)}
-                                        className="w-[300px] flex-none h-10 bg-white/10 text-white rounded-xl hover:bg-white/20"
-                                    >
-                                        + Add another list
-                                    </button>
-                                )}
-                            </div>
 
+                                    )
+                                }
+
+                            </Droppable>
 
                         </div>
                     </DragDropContext>

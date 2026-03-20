@@ -5,7 +5,8 @@ import Tag from './Tag'
 
 const Card = ({ id, list_id, position, color, label, status, due_date }: CardType) => {
     const [formData, setFormData] = useState<CardType>({
-        list_id: 1,
+        id: id,
+        list_id: list_id,
         position: position,
         due_date: due_date,
         label: label,
@@ -62,7 +63,7 @@ const Card = ({ id, list_id, position, color, label, status, due_date }: CardTyp
                     }
 
                     {/*Goal*/}
-                    <div className="flex flex-row items-center gap-1 border">
+                    <div className="flex flex-row items-center gap-1 ">
                         <div onClick={() => handleChangeStatus(Number(id))} className={`w-4 aspect-square border rounded-full ${formData.status === 'finished' ? 'bg-green-300' : 'border-white'} `}></div>
                         <span className="text-gray-300">{label}</span>
                     </div>

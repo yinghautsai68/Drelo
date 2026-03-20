@@ -1,18 +1,17 @@
 export interface ListType {
-    id?: number,
-    user_id?: number,
+    id: number,
+    user_id: number,
+    position: number,
     label: string,
     cards: CardType[],
-    color: string,
-    position: number,
-    isEditing?: boolean
+    color: string
 }
 export interface CardType {
-    id?: number,
-    list_id?: number,
+    id: number,
+    list_id: number,
     position: number,
+    label: string,
     color: string,
-    label: string
     status: string,
     due_date: string
 }
