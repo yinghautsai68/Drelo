@@ -1,54 +1,71 @@
 import type { Request, Response } from "express";
 import { db } from "../config/db";
+import type { ListCardsType } from "../types/listscards.types";
 
-export const getListWithCards = async (req: Request, res: Response) => {
+export const getListsWithCards = async (req: Request, res: Response) => {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
     try {
+        const [idResult]: any = await db.query(
+            "SELECT id FROM users WHERE id = ?",
+            [userId]
+        )
+        if (idResult.length === 0) {
+            return res.status(400).json({ message: "User does not exits!" });
+        }
+
         const [rows]: any = await db.query(
-            `SELECT 
-                l.id AS list_id  ,
+            `SELECT  
+                l.id AS list_id,
                 l.position AS list_position,
                 l.label AS list_label,
                 l.color AS list_color,
                 c.id AS card_id,
+                c.list_id AS card_list_id,
                 c.position AS card_position,
-                c.due_date AS card_due_date,
                 c.label AS card_label,
+                c.color AS card_color,
                 c.status AS card_status,
-                c.color AS card_color
+                c.due_date AS card_due_date
             FROM lists l 
-            LEFT JOIN cards c 
-            ON c.list_id = l.id 
-            WHERE  user_id = 1 
-            `
-        );
+            LEFT JOIN cards c ON l.id = c.list_id 
+            WHERE user_id = ? ORDER BY l.position ASC, c.position ASC;`,
+            [userId]
+        )
 
-        const listsMap: any = {};
+        const listsMap: Record<number, ListCardsType> = {};
 
-        rows.forEach((row: any) => {
-            if (!listsMap[row.list_id]) {
-                listsMap[row.list_id] = {
-                    id: row.list_id,
-                    position: row.list_position,
-                    label: row.list_label,
-                    color: row.list_color,
+        rows.forEach((list: any) => {
+            if (!listsMap[list.list_id]) {
+                listsMap[list.list_id] = {
+                    id: list.list_id,
+                    position: list.list_position,
+                    label: list.list_label,
+                    color: list.list_color,
                     cards: []
-                };
+                }
+
+            }
+            if (list.card_id) {
+                listsMap[list.list_id]!.cards.push({
+                    id: list.card_id,
+                    list_id: list.list_id,
+                    position: list.card_position,
+                    label: list.card_label,
+                    color: list.card_color,
+                    status: list.card_status,
+                    due_date: list.card_due_date
+                })
             }
 
-            if (row.card_id) {
-                listsMap[row.list_id].cards.push({
-                    id: row.card_id,
-                    position: row.card_position,
-                    due_date: row.card_due_date,
-                    label: row.card_label,
-                    status: row.card_status,
-                    color: row.card_color
-                });
-            }
-        });
+        }
+        )
 
-        const data = Object.values(listsMap);
-        res.status(200).json({ success: true, message: "Successfully fetched cards", data: data })
+        const listsWithCards = Object.values(listsMap).sort(
+            (a: ListCardsType, b: ListCardsType) => a.position - b.position
+        )
+
+        res.status(200).json({ success: true, message: "Successfully fetched cards", data: listsWithCards })
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Server error!" });

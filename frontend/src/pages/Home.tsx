@@ -4,7 +4,11 @@ import List from "../components/List"
 import { DragDropContext, Droppable, } from "@hello-pangea/dnd";
 import type { DropResult } from "@hello-pangea/dnd";
 import type { CardType, ListType } from "../types/types";
+import { useNavigate } from "react-router-dom";
 const Home = () => {
+    const token = localStorage.getItem("token");
+    const navigate = useNavigate();
+
     const [lists, setLists] = useState<ListType[]>([]);
 
     const [index, setIndex] = useState<number>(0);
@@ -93,7 +97,7 @@ const Home = () => {
 
     const handleDragEnd = async (result: DropResult) => {
         console.log(result);
-        const { draggableId, type, source, destination, } = result;
+        const { type, source, destination, } = result;
 
         if (!destination) {
             return;
@@ -208,7 +212,11 @@ const Home = () => {
     const fetchListsWithCards = async () => {
         try {
             const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/listscards`, {
-                method: 'GET'
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
             })
             const result = await response.json();
 
@@ -221,7 +229,12 @@ const Home = () => {
             console.log(error);
         }
     };
-    useEffect(() => { fetchListsWithCards() }, [])
+    useEffect(() => {
+        if (!token) {
+            navigate("/login");
+        }
+        fetchListsWithCards()
+    }, [])
     const handleAddCardToList = (listId: number, newCard: CardType) => {
         setLists((prev) => prev.map((list) => list.id === listId ? { ...list, cards: [...list.cards, newCard] } : list));
     };

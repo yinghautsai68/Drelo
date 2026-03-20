@@ -17,6 +17,5 @@ export const getListsSchema = z.object({
 export const editListSchema = z.object({
     position: z.number(),
     label: z.string(),
-    color: z.string()
 });
 

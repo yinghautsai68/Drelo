@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { createListSchema, editListSchema, getListsSchema, listIdParamSchema } from "./lists.schema";
 import { db } from "../config/db";
+import { success } from "zod";
 
 //BASIC CRUD
 export const createList = async (req: Request, res: Response) => {
@@ -17,10 +18,14 @@ export const createList = async (req: Request, res: Response) => {
         if (user.length === 0) {
             return res.status(404).json({ message: "User does not exists!" });
         }
+        const [listCount]: any = await db.query(
+            "SELECT COUNT(*) AS total_lists FROM lists WHERE user_id = 1",
+        )
+        const position = listCount[0].total_lists;
 
         const [insertList]: any = await db.query(
-            "INSERT INTO lists (user_id, label) VALUES (?,?) ",
-            [1, label]
+            "INSERT INTO lists (user_id, position, label) VALUES (?,?,?) ",
+            [1, position, label]
         );
 
         const [newList]: any = await db.query(
@@ -28,7 +33,7 @@ export const createList = async (req: Request, res: Response) => {
             [insertList.insertId]
         );
 
-        res.status(201).json({ success: true, message: "List created successfully!", data: newList[0] });
+        res.status(201).json({ success: true, message: "List created successsadfasdsfully!", data: newList[0] });
 
     } catch (error) {
         console.log(error);
@@ -44,14 +49,14 @@ export const getLists = async (req: Request, res: Response) => {
     try {
         const { user_id } = result.data;
         const [rows]: any = await db.query(
-            "SELECT * FROM lists WHERE user_id = ?",
+            "SELECT * FROM lists WHERE user_id = ? ORDER BY position ASC",
             [user_id]
         );
         if (rows.length === 0) {
             return res.status(404).json({ message: "User does not exists!" });
         }
 
-        res.status(200).json({ message: "lists fetched", data: rows })
+        res.status(200).json({ success: true, message: "lists fetched", data: rows })
 
     } catch (error) {
         console.log(error);
@@ -60,24 +65,17 @@ export const getLists = async (req: Request, res: Response) => {
 }
 
 export const editList = async (req: Request, res: Response) => {
-    const result = listIdParamSchema.safeParse(req.params);
-    if (!result.success) {
-        return res.status(400).json({ error: result.error });
-    }
-
-    const result2 = editListSchema.safeParse(req.body);
-    if (!result2.success) {
-        return res.status(400).json({ error: result2.error })
-    }
+    const { lists } = req.body;
     try {
-        const { id } = result.data;
-        const { position, label, color } = result2.data;
-        await db.query(
-            "UPDATE lists SET position = ?, label = ?, color = ? WHERE id = ?",
-            [position, label, color, id]
-        );
+        for (const list of lists) {
+            await db.query(
+                "UPDATE lists SET position = ? WHERE id = ?",
+                [list.position, list.id]
+            )
+        }
 
-        res.status(200).json({ message: "Edited list successfully!" });
+
+        res.status(200).json({ success: true, message: "Edited list successfsully!" });
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Server error!" });

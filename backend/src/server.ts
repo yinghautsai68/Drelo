@@ -15,7 +15,7 @@ app.use(cors());
 app.use("/api/auth", authRoutes);
 app.use("/api/lists", listsRoutes);
 app.use("/api/cards", cardsRoutes);
-app.use("/api/listcard", listCardRoutes);
+app.use("/api/listscards", listCardRoutes);
 
 app.listen(5000, () => {
     console.log("server is working!");

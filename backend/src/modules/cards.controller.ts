@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
 import { cardIdParamSchema, createCardSchema, editCardSchema, getCardsSchema } from "./cards.schema";
 import { db } from "../config/db";
+import { success } from "zod";
+import type { ListCardsType } from "../types/listscards.types";
 
 
 export const createCard = async (req: Request, res: Response) => {
@@ -18,9 +20,15 @@ export const createCard = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "List not found!" });
         }
 
+        const [lastpos]: any = await db.query(
+            "SELECT MAX(position) AS last_position FROM cards WHERE list_id = ?",
+            [list_id]
+        )
+        const position = lastpos[0].last_position === null ? 0 : lastpos[0].last_position + 1;
+
         const [insertResult]: any = await db.query(
-            "INSERT INTO cards (list_id, label) VALUES (?,?)",
-            [list_id, label]
+            "INSERT INTO cards (list_id, label, position) VALUES (?,?,?)",
+            [list_id, label, position]
         );
         const [newCard]: any = await db.query(
             "SELECT * FROM cards WHERE id = ?",
@@ -112,6 +120,30 @@ export const editCard = async (req: Request, res: Response) => {
     }
 }
 
+export const moveCard = async (req: Request, res: Response) => {
+    try {
+        const { lists } = req.body;
+        if (!lists) {
+            return res.status(400).json({ message: "No lists received" });
+        }
+
+        for (const list of lists) {
+            for (const card of list.cards) {
+                await db.query(
+                    "UPDATE cards SET list_id = ?, position = ? WHERE id = ?",
+                    [card.list_id, card.position, card.id]
+                );
+            }
+
+
+        }
+
+        res.status(200).json({ success: true, message: "Moved card successfully!" });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: "Server error!" });
+    }
+}
 
 export const deleteCard = async (req: Request, res: Response) => {
     const result = cardIdParamSchema.safeParse(req.params);

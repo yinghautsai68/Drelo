@@ -5,6 +5,6 @@ const router = express.Router();
 
 router.post("/", createList);
 router.get("/", getLists);
-router.patch("/:id", editList);
+router.patch("/", editList);
 router.delete("/:id", deleteList);
 export default router;

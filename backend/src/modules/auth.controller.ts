@@ -62,7 +62,7 @@ export const login = async (req: Request, res: Response) => {
             { id: rows[0].id }, env.JWT_SECRET, { expiresIn: "1h" }
         );
 
-        res.status(200).json({ message: "Login successful!", token: token });
+        res.status(200).json({ success: true, message: "Login successful!", token: token });
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Server error!" });
