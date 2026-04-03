@@ -49,7 +49,6 @@ const Card = ({ card, tagOptions, list_id, label, due_date, updateCard, deleteCa
 
     const handleToggleStatus = async (e: React.MouseEvent) => {
         setFormData((prev) => ({ ...prev, status: formData.status === 'finished' ? 'pending' : 'finished' }))
-        updateCard(list_id, card.id, { status: formData.status === 'finished' ? 'pending' : 'finished' });
     }
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -78,6 +77,17 @@ const Card = ({ card, tagOptions, list_id, label, due_date, updateCard, deleteCa
         addTagToCard(card.id, tag.id);
     }
 
+    const handleUpdateCard = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        updateCard(list_id, card.id, formData);
+        setShowColorOptions(false);
+        setShowOptions(false);
+    }
+
+    const handleCancelUpdateCard = () => {
+        setFormData(originalData);
+        setShowOptions(false)
+    }
 
     // Tag CRUD
     const handleCreateTag = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -112,12 +122,17 @@ const Card = ({ card, tagOptions, list_id, label, due_date, updateCard, deleteCa
         setShowEditTagModal(false)
     }
 
+    useEffect(() => {
+        setFormData({ ...card, tags: card.tags || [] });
+        setOriginalData({ ...card, tags: card.tags || [] });
+    }, [card]);
+
     return (
         <>
             <div onClick={() => setShowOptions(true)} className="flex flex-col w-full  rounded-xl cursor-pointer">
                 {formData.color && (
                     /*Color Cover */
-                    < div className={`w-full h-[40px]  rounded-tl-xl rounded-tr-xl ${colorMap[formData.color]}`}>
+                    < div className={`w-full h-[40px]  rounded-tl-xl rounded-tr-xl ${colorMap[formData.color].card}`}>
 
                     </div>
                 )
@@ -125,7 +140,7 @@ const Card = ({ card, tagOptions, list_id, label, due_date, updateCard, deleteCa
 
 
                 {/*Details*/}
-                <div className={`${formData.color ? 'rounded-bl-xl rounded-br-xl' : 'rounded-xl'} flex flex-col justify-around gap-1 w-full h-full px-2 py-2  bg-neutral-800`}>
+                <div className={`${formData.color ? 'rounded-bl-xl rounded-br-xl' : 'rounded-xl'} flex flex-col justify-around gap-1 w-full h-full px-2 py-2  bg-zinc-800`}>
                     <div className="flex flex-col justify-around gap-1">
                         {
 
@@ -160,22 +175,20 @@ const Card = ({ card, tagOptions, list_id, label, due_date, updateCard, deleteCa
             {
                 showOptions &&
                 <div onClick={() => setShowOptions(false)} className='fixed left-0 top-0 flex flex-row justify-center items-start w-full h-screen pt-20 bg-black/50 z-50 cursor-default'>
-                    <div onClick={(e) => { e.stopPropagation(); (document.activeElement as HTMLElement)?.blur(); }} className='   flex flex-col w-[90%] lg:w-[50%]  bg-gray-700 rounded-xl '>
-                        <div className={`${formData.color ? 'h-[20%]' : 'h-[10%] border-b border-white/50'} relative flex flex-row justify-end items-end w-full    p-2 ${colorMap[formData.color]} rounded-t-xl`}>
-                            <button onClick={() => setShowColorOptions(true)} className=' p-2 bg-gray-600 rounded-xl text-white cursor-pointer '>Change</button>
+                    <div onClick={(e) => { e.stopPropagation(); (document.activeElement as HTMLElement)?.blur(); }} className='   flex flex-col w-[90%] lg:w-[50%]  bg-zinc-800 rounded-xl '>
+                        <div className={`${formData.color ? `h-[20%] ${colorMap[formData.color].card}` : 'h-[10%] border-b border-white/50'} relative flex flex-row justify-end items-end w-full  p-2  rounded-t-xl`}>
+                            <Button onClick={() => setShowColorOptions(true)} className=' p-2 bg-zinc-700 hover:bg-zinc-800 rounded-xl text-white cursor-pointer '>更換封面</Button>
                             {/*Color Options Popup*/
                                 showColorOptions &&
-                                <div className='absolute top-full left-1/2 -translate-x-1/2 mt-1 flex flex-col gap-2  w-[300px]  p-2 rounded-xl  bg-gray-800 z-60 '>
+                                <div className='absolute top-full left-1/2 -translate-x-1/2 mt-1 flex flex-col gap-2  w-[300px]  px-2 pt-4 pb-4 rounded-xl  bg-zinc-700 z-60 '>
                                     <div className='flex flex-row justify-between px-2'>
-                                        <h1 className='text-center text-white'>Color Picker</h1>
+                                        <h1 className='w-full text-center text-zinc-200'>選擇顏色</h1>
                                         <span onClick={() => setShowColorOptions(false)} className='text-white cursor-pointer'>X</span>
                                     </div>
-                                    <div className='flex flex-row justify-around items-center gap-2 w-full  '>
+                                    <div className='flex flex-col justify-around items-center gap-2 w-full h-60 px-5 '>
                                         <ColorOption onClick={() => handleColorChange('red')} color='red' />
                                         <ColorOption onClick={() => handleColorChange('blue')} color='blue' />
                                         <ColorOption onClick={() => handleColorChange('yellow')} color='yellow' />
-                                    </div>
-                                    <div className='flex flex-row justify-around items-center gap-2 w-full  '>
                                         <ColorOption onClick={() => handleColorChange('violet')} color='violet' />
                                         <ColorOption onClick={() => handleColorChange('orange')} color='orange' />
                                         <ColorOption onClick={() => handleColorChange('green')} color='green' />
@@ -183,7 +196,7 @@ const Card = ({ card, tagOptions, list_id, label, due_date, updateCard, deleteCa
                                 </div>
                             }
                         </div>
-                        <form onSubmit={() => updateCard(list_id, card.id, formData)} className='flex flex-col gap-3 w-full h-[80%] px-5 py-5'>
+                        <form onSubmit={handleUpdateCard} className='flex flex-col gap-3 w-full h-[80%] px-5 py-5'>
                             <div className="flex flex-row items-center gap-5 ">
                                 <div onClick={() => setFormData(prev => ({ ...prev, status: prev.status === 'finished' ? 'pending' : 'finished' }))} className={`w-4 aspect-square border rounded-full ${formData.status === 'finished' ? 'bg-green-300' : 'border-white'} `}></div>
                                 <input onClick={(e) => e.stopPropagation()} name='label' value={formData.label} onChange={handleInputChange} className="w-full px-2 text-[32px] font-semibold text-gray-300" />
@@ -192,7 +205,7 @@ const Card = ({ card, tagOptions, list_id, label, due_date, updateCard, deleteCa
                                 <input onClick={(e) => e.stopPropagation()} type="datetime-local" value={formData.due_date} onChange={(e) => setFormData((prev) => ({ ...prev, due_date: e.target.value }))} className='px-2 py-2 text-gray-300 border border-gray-500 rounded-xl' />
                             </div>
                             <div className='flex flex-row flex-wrap  w-full  gap-2'>
-                                <Button type='button' onClick={() => setShowTagOptions(true)} className=''>+ Add Tag</Button>
+                                <Button type='button' onClick={() => setShowTagOptions(true)} className='border border-white/20'>+ Add Tag</Button>
                                 {
                                     formData.tags.map((tag) => {
                                         return (
@@ -203,9 +216,9 @@ const Card = ({ card, tagOptions, list_id, label, due_date, updateCard, deleteCa
                             </div>
                             {/*<textarea onClick={(e) => e.stopPropagation()} value='' className='w-full h-[50%] p-2 border border-gray-500 rounded-xl text-gray-300 '></textarea>*/}
                             <div className='flex flex-row justify-end items-end gap-2 w-full   '>
-                                <button type='submit' className='p-2 bg-green-700 hover:bg-green-800 text-white rounded-xl cursor-pointer transition-all'>Save</button>
-                                <button type='button' onClick={() => { setFormData(originalData); setShowOptions(false) }} className='p-2 bg-gray-500 hover:bg-gray-800 text-white rounded-xl cursor-pointer transition-all'>Cancel</button>
-                                <button onClick={() => deleteCard(list_id, card.id)} type='button' className='p-2 bg-red-700 hover:bg-red-800 text-white rounded-xl cursor-pointer transition-all'>Delete</button>
+                                <Button type='submit' className='p-2 bg-green-700 hover:bg-green-800 text-white rounded-xl cursor-pointer transition-all'>儲存</Button>
+                                <Button type='button' onClick={handleCancelUpdateCard} className='p-2 bg-zinc-700 hover:bg-zinc-900 text-white rounded-xl cursor-pointer transition-all'>取消</Button>
+                                <Button onClick={() => deleteCard(list_id, card.id)} type='button' className='p-2 bg-red-700 hover:bg-red-800 text-white rounded-xl cursor-pointer transition-all'>刪除</Button>
                             </div>
                         </form>
                     </div >

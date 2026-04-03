@@ -1,4 +1,4 @@
-import { use, useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 
 import List from "../components/List"
 import { DragDropContext, Droppable, } from "@hello-pangea/dnd";
@@ -12,7 +12,7 @@ const Home = () => {
 
     const [lists, setLists] = useState<ListType[]>([]);
     const [tagOptions, setTagOptions] = useState<TagType[]>([]);
-    const [addingCardListId, setAddingCardListId] = useState<number | null>(null);
+
 
 
     //Drag and Drop
@@ -21,7 +21,7 @@ const Home = () => {
     const [translate, setTranslate] = useState<number>(index * width + width / 2);
     const handleNext = () => {
         setIndex((prev) => {
-            const newIndex = Math.min(prev + 1, Object.keys(lists).length - 1);
+            const newIndex = Math.min(prev + 1, Object.keys(lists).length);
             setTranslate(newIndex * width + width / 2);
             return newIndex;
         });
@@ -311,7 +311,9 @@ const Home = () => {
                 return console.log(result.message);
             }
             console.log(result.message);
-
+            setLists((prev) =>
+                prev.map((list) => list.id === listId ? { ...list, cards: list.cards?.map((card) => card.id === cardId ? { ...card, ...updatedFields } : card) } : list)
+            );
         } catch (error) {
             console.log(error);
         }
@@ -472,7 +474,6 @@ const Home = () => {
     }, [])
 
 
-    useEffect(() => { console.log(addingCardListId) }, [addingCardListId])
     return (
         <div className="flex flex-col  w-full h-screen bg-gray-950">
             {/*Navbar*/}
@@ -526,7 +527,7 @@ const Home = () => {
 
 
                                             style={isMobile ? { left: `calc(50% - ${translate}px)` } : {}}
-                                            className={`absolute     flex flex-row  items-start h-full pb-25 lg:pb-0   transition-all duration-400`}
+                                            className={`absolute     flex flex-row  items-start h-full pb-25 lg:pb-0    transition-all duration-400`}
                                         >
                                             {
 

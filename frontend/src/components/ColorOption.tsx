@@ -8,7 +8,7 @@ type ColorOptionProps = {
 
 const ColorOption = ({ color, onClick }: ColorOptionProps) => {
     return (
-        <div onClick={onClick} className={`w-full h-[50px] rounded-xl ${colorMap[color]} cursor-pointer`}></div>
+        <div onClick={onClick} className={`w-full h-[50px] rounded-lg ${colorMap[color].card} cursor-pointer`}></div>
     )
 }
 

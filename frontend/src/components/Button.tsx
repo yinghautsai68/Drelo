@@ -10,7 +10,7 @@ type ButtonProps = {
 
 const Button = ({ onClick, className, type, children }: ButtonProps) => {
     return (
-        <button type={type} onClick={onClick} className={`${className} flex flex-row justify-center items-center  h-10 px-3 bg-gray-500 hover:bg-gray-800 rounded-lg text-white cursor-pointer transition-all  `}>
+        <button type={type} onClick={onClick} className={`${className} flex flex-row justify-center items-center  h-10 px-3  rounded-lg text-white cursor-pointer transition-all  `}>
             {children}
         </button>
     )
