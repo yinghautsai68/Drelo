@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { cardSchema } from "./cards.schema";
 
 
 
@@ -15,6 +16,13 @@ export const getListsSchema = z.object({
 });
 
 export const editListSchema = z.object({
+    user_id: z.number().optional(),
+    position: z.number().optional(),
+    label: z.string().optional(),
+    color: z.string().optional()
+});
+
+export const moveListSchema = z.object({
     position: z.number(),
     label: z.string(),
 });

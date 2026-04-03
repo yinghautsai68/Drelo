@@ -17,6 +17,7 @@ export const getListsWithCards = async (req: Request, res: Response) => {
         const [rows]: any = await db.query(
             `SELECT  
                 l.id AS list_id,
+                l.user_id AS list_user_id,
                 l.position AS list_position,
                 l.label AS list_label,
                 l.color AS list_color,
@@ -29,7 +30,7 @@ export const getListsWithCards = async (req: Request, res: Response) => {
                 c.due_date AS card_due_date
             FROM lists l 
             LEFT JOIN cards c ON l.id = c.list_id 
-            WHERE user_id = ? ORDER BY l.position ASC, c.position ASC;`,
+            WHERE l.user_id = ? ORDER BY l.position ASC, c.position ASC;`,
             [userId]
         )
 
@@ -39,6 +40,7 @@ export const getListsWithCards = async (req: Request, res: Response) => {
             if (!listsMap[list.list_id]) {
                 listsMap[list.list_id] = {
                     id: list.list_id,
+                    user_id: list.list_user_id,
                     position: list.list_position,
                     label: list.list_label,
                     color: list.list_color,

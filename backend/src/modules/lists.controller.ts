@@ -65,6 +65,40 @@ export const getLists = async (req: Request, res: Response) => {
 }
 
 export const editList = async (req: Request, res: Response) => {
+    const idResult = listIdParamSchema.safeParse(req.params);
+    if (!idResult.success) {
+        return res.status(400).json({ message: idResult.error });
+    }
+    const result = editListSchema.safeParse(req.body);
+    if (!result.success) {
+        return res.status(400).json({ message: result.error });
+    }
+    try {
+        const { id } = idResult.data;
+        const { user_id, position, label, color } = result.data;
+
+        const [editResult]: any = await db.query(
+            `
+            UPDATE lists SET
+            user_id = COALESCE(?, user_id),
+            position = COALESCE(?, position),
+            label = COALESCE(?, label),
+            color = COALESCE(?,color)
+            WHERE id = ?
+            `,
+            [user_id, position, label, color, id]
+        );
+        if (editResult.affectedRows === 0) {
+            return res.status(400).json({ message: "Edit failed" });
+        }
+
+        res.status(200).json({ success: true, message: "Edit list successfully" });
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+export const moveList = async (req: Request, res: Response) => {
     const { lists } = req.body;
     try {
         for (const list of lists) {
@@ -101,11 +135,19 @@ export const deleteList = async (req: Request, res: Response) => {
         }
 
         await db.query(
+            "DELETE FROM card_tags WHERE card_id IN (SELECT id from cards WHERE list_id = ?)",
+            [id]
+        );
+        await db.query(
+            "DELETE FROM cards WHERE list_id = ?",
+            [id]
+        );
+        await db.query(
             "DELETE FROM lists where id = ?",
             [id]
         );
 
-        res.status(200).json({ message: `List ${id} deleted!` })
+        res.status(200).json({ success: true, message: `List ${id} deleted!` })
 
     } catch (error) {
         console.log(error);

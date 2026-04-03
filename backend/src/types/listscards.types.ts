@@ -6,9 +6,11 @@ export interface CardType {
     color: string,
     status: string,
     due_date: string,
+
 }
 export interface ListCardsType {
     id: number,
+    user_id: number,
     position: number,
     label: string,
     color: string,

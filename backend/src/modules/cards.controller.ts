@@ -102,18 +102,24 @@ export const editCard = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Card not found!" });
         }
 
-        await db.query(
+        const [editResult]: any = await db.query(
             `UPDATE cards SET 
             list_id = COALESCE(?, list_id), 
             position = COALESCE(?, position), 
-            due_date = COALESCE(?, due_date), label = COALESCE(?,label), 
+            due_date = COALESCE(?, due_date), 
+            label = COALESCE(?,label), 
             status = COALESCE(?,status),
             color =COALESCE(?,color)  
             WHERE id = ? `
             ,
             [list_id ?? null, position ?? null, formatDate(due_date) ?? null, label ?? null, status ?? null, color ?? null, id]
         );
-        res.status(200).json({ success: true, message: "Edited card successfully!" });
+
+        if (editResult.affectedRows === 0) {
+            return res.status(400).json({ success: false, message: "No changes made to the card." });
+        }
+        const [rows]: any = await db.query("SELECT * FROM cards WHERE id = ?", [id]);
+        res.status(200).json({ success: true, message: "Edited card successfully!", editedCard: rows[0] });
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Server error!" });
@@ -162,11 +168,12 @@ export const deleteCard = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Card not found!" });
         }
 
+
         await db.query(
             "DELETE FROM cards WHERE id = ?",
             [id]
         );
-        res.status(200).json({ message: "Deleted card successfully!" });
+        res.status(200).json({ success: true, message: "Deleted card successfully!" });
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Server error!" });

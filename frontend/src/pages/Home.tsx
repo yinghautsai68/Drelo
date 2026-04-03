@@ -3,14 +3,19 @@ import { use, useEffect, useState } from "react"
 import List from "../components/List"
 import { DragDropContext, Droppable, } from "@hello-pangea/dnd";
 import type { DropResult } from "@hello-pangea/dnd";
-import type { CardType, ListType } from "../types/types";
+import type { CardType, createTagType, ListType, TagType } from "../types/types";
 import { useNavigate } from "react-router-dom";
+import { UtilProvider } from "../context/UtilContext";
 const Home = () => {
     const token = localStorage.getItem("token");
     const navigate = useNavigate();
 
     const [lists, setLists] = useState<ListType[]>([]);
+    const [tagOptions, setTagOptions] = useState<TagType[]>([]);
+    const [addingCardListId, setAddingCardListId] = useState<number | null>(null);
 
+
+    //Drag and Drop
     const [index, setIndex] = useState<number>(0);
     const width: number = 300;
     const [translate, setTranslate] = useState<number>(index * width + width / 2);
@@ -53,16 +58,13 @@ const Home = () => {
 
     const [mouseStart, setMouseStart] = useState<number | null>(null);
     const handleMouseStart = (e: React.MouseEvent) => {
-        const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT') {
-            return; // Don't prevent default, let the input focus!
-        }
+
 
         console.log(e.clientX)
         if (!isMobile) {
             return;
         }
-        e.preventDefault();
+
         setMouseStart(e.clientX);
     }
     const handleMouseEnd = (e: React.MouseEvent) => {
@@ -140,7 +142,7 @@ const Home = () => {
             const newLists = [...lists];
             const sourceList = newLists.find((list) => list.id === Number(source.droppableId.replace("list-", "")));
             const destinationList = newLists.find((list) => list.id === Number(destination.droppableId.replace("list-", "")));
-            if (!sourceList || !destinationList) {
+            if (!sourceList?.cards || !destinationList?.cards) {
                 return;
             }
 
@@ -164,8 +166,6 @@ const Home = () => {
                 if (!result.success) {
                     return console.log(result.message);
                 }
-
-
             } catch (error) {
                 console.log(error);
             }
@@ -173,9 +173,14 @@ const Home = () => {
         }
     };
 
+    // List CRUD 
     const [isAdding, setIsAdding] = useState<boolean>(false);
     const [newListTitle, setNewListTitle] = useState<string>("");
-    const handleAddList = async () => {
+    const createList = async () => {
+        if (newListTitle.trim() === "") {
+            setIsAdding(false);
+            return;
+        }
         const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/lists`, {
             method: 'POST',
             headers: {
@@ -190,26 +195,7 @@ const Home = () => {
         setIsAdding(false);
         setNewListTitle("");
     }
-    /*
-        const fetchLists = async () => {
-            try {
-                const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/lists?user_id=1`, {
-                    method: 'GET'
-                })
-                const result = await response.json();
-    
-                if (!result.success) {
-                    return console.log(result.message);
-                }
-                console.log(result.data.map((list: ListType) => ({ ...list, cards: [] })))
-                setLists(result.data.map((list: ListType) => ({ ...list, cards: [] })));
-            } catch (error) {
-                console.log(error);
-            }
-        }
-        useEffect(() => { fetchLists() }, []);
-    */
-    const fetchListsWithCards = async () => {
+    const fetchLists = async () => {
         try {
             const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/listscards`, {
                 method: 'GET',
@@ -225,20 +211,268 @@ const Home = () => {
             }
             console.log(result.message, result.data)
             setLists(result.data);
+            const listData = result.data;
+
+
+            //
+            const cardIds: number[] = [];
+            listData.forEach((list: ListType) => {
+                list.cards?.forEach((card) => {
+                    cardIds.push(card.id);
+                })
+            });
+
+            const tags = await fetchCardTags(cardIds);
+
+            const tagsMap = new Map<number, TagType[]>();
+
         } catch (error) {
             console.log(error);
         }
     };
+    const updateList = async (listId: number, updatedFields: Partial<ListType>) => {
+        console.log(updatedFields);
+        setLists((prev) => prev.map((list) => list.id === listId ? { ...list, ...updatedFields } : list))
+        try {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/lists/${listId}`, {
+                method: "PATCH",
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(updatedFields)
+            });
+            const result = await response.json();
+            if (!result.success) {
+                return console.log(result.message);
+            }
+            console.log(result.message);
+
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+    const deleteList = async (listId: number) => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/lists/${listId}`, {
+                method: "DELETE",
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Beaer ${token}`
+                }
+            });
+            const result = await response.json();
+            if (!result.success) {
+                return console.log(result.message);
+            }
+            console.log(result.message);
+            setLists((prev) => prev.filter((list) => list.id !== listId));
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+    // Card CRUD
+    const createCard = async (listId: number, cardLabel: string) => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/cards`, {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ list_id: listId, label: cardLabel })
+            })
+            const result = await response.json();
+            if (!result.success) {
+                return console.log(result.message);
+            }
+            console.log(result.message)
+
+            setLists((prev) => prev.map((list) => list.id === listId ? { ...list, cards: [...list.cards ?? [], result.data] } : list));
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+
+    const updateCard = async (listId: number, cardId: number, updatedFields: Partial<CardType>) => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/cards/${cardId}`, {
+                method: "PATCH",
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(updatedFields)
+            });
+            const result = await response.json();
+            if (!result.success) {
+                return console.log(result.message);
+            }
+            console.log(result.message);
+
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+
+    const deleteCard = async (listId: number, cardId: number) => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/cards/${cardId}`, {
+                method: "DELETE"
+            });
+            const result = await response.json();
+            if (!result.success) {
+                return console.log(result.message);
+            }
+            alert(result.message);
+        } catch (error) {
+            console.log(error);
+        }
+        setLists((prev) => prev.map((list) => list.id === listId ? { ...list, cards: list.cards?.filter(card => card.id !== cardId) } : list))
+    }
+
+
+    // Tag CRUD
+    const createTagOption = async (tagFormData: createTagType) => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/tags`, {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(tagFormData)
+            });
+            const result = await response.json();
+            if (!result.success) {
+                return console.log(result.message);
+            }
+            console.log(result.data);
+            setTagOptions((prev) => ([...prev, result.data]));
+
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+    const fetchTagOptions = async () => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/tags`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+            });
+
+            const result = await response.json();
+            if (!result.success) {
+                return console.log(result.message);
+            }
+            console.log(result.message, result.data);
+            setTagOptions(result.data);
+
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+    const updateTagOption = async (tagOptionId: number, updatedField: Partial<TagType>) => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/tags/${tagOptionId}`, {
+                method: "PATCH",
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(updatedField)
+            });
+            const result = await response.json();
+            if (!result.success) {
+                return console.log(result.message);
+            }
+            console.log(result.message);
+            setTagOptions((prev) => {
+                return prev.map((tag) => {
+                    return tag.id === tagOptionId ? { ...tag, ...updatedField } : tag
+                })
+            })
+
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+    const deleteTagOption = async (tagOptionId: number) => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/tags/${tagOptionId}`, {
+                method: "DELETE",
+            });
+            const result = await response.json();
+            if (!result.success) {
+                return console.log(result.message);
+            }
+
+            setTagOptions((prev) => {
+                return prev.filter((tag) => tag.id !== tagOptionId)
+            })
+            console.log(result.message);
+
+
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+    const addTagToCard = async (cardId: number, tagId: number) => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/card-tags`, {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ card_id: cardId, tag_id: tagId })
+            });
+            const result = await response.json();
+            if (!result.success) {
+                return console.log(result.message);
+            }
+            console.log(result.message);
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+    const fetchCardTags = async (cardIds: number[]) => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/card-tags`, {
+                method: "GET"
+            })
+            const result = await response.json();
+            if (!result.success) {
+                return console.log(result.message);
+            }
+            console.log(result.message);
+        } catch (error) {
+
+        }
+    }
+
+    // useEffects
     useEffect(() => {
         if (!token) {
             navigate("/login");
         }
-        fetchListsWithCards()
+        fetchLists();
+        fetchTagOptions();
     }, [])
-    const handleAddCardToList = (listId: number, newCard: CardType) => {
-        setLists((prev) => prev.map((list) => list.id === listId ? { ...list, cards: [...list.cards, newCard] } : list));
-    };
 
+
+    useEffect(() => { console.log(addingCardListId) }, [addingCardListId])
     return (
         <div className="flex flex-col  w-full h-screen bg-gray-950">
             {/*Navbar*/}
@@ -274,7 +508,12 @@ const Home = () => {
 
                     <DragDropContext onDragEnd={handleDragEnd}>
                         {/*View Container*/}
-                        <div className="relative  flex flex-row items-start w-full h-[92%] px-5 pt-5 pb-5  bg-gray-800  overflow-y-hidden overflow-x-hidden md:overflow-x-auto ">
+                        <div
+                            onTouchStart={handleTouchStart}
+                            onTouchEnd={handleTouchEnd}
+                            onMouseDown={handleMouseStart}
+                            onMouseUp={handleMouseEnd}
+                            className="relative  flex flex-row items-start w-full h-[92%] px-5 pt-5 pb-5  bg-gray-800  overflow-y-hidden overflow-x-hidden md:overflow-x-auto ">
                             {/*Item Container*/}
                             {/*List*/}
                             <Droppable droppableId="board" type="COLUMN" direction="horizontal">
@@ -285,10 +524,7 @@ const Home = () => {
                                             {...provided.droppableProps}
 
 
-                                            onTouchStart={handleTouchStart}
-                                            onTouchEnd={handleTouchEnd}
-                                            onMouseDown={handleMouseStart}
-                                            onMouseUp={handleMouseEnd}
+
                                             style={isMobile ? { left: `calc(50% - ${translate}px)` } : {}}
                                             className={`absolute     flex flex-row  items-start h-full pb-25 lg:pb-0   transition-all duration-400`}
                                         >
@@ -296,7 +532,7 @@ const Home = () => {
 
                                                 lists.map((list, index) => {
                                                     return (
-                                                        <List key={list.id} index={index} id={list.id} label={list.label} cards={(list.cards ?? [])} color={list.color} position={list.position} handleAddCardToList={handleAddCardToList} />
+                                                        <List key={list.id} index={index} list={list} cards={(list.cards ?? [])} tagOptions={tagOptions} updateList={updateList} deleteList={deleteList} createCard={createCard} updateCard={updateCard} deleteCard={deleteCard} createTagOption={createTagOption} updateTagOption={updateTagOption} deleteTagOption={deleteTagOption} addTagToCard={addTagToCard} />
                                                     );
                                                 })
 
@@ -310,8 +546,8 @@ const Home = () => {
                                                             className="w-full p-2 bg-gray-950 text-white rounded"
                                                             value={newListTitle}
                                                             onChange={(e) => setNewListTitle(e.target.value)}
-                                                            onBlur={handleAddList} // Save on click away
-                                                            onKeyDown={(e) => e.key === 'Enter' && handleAddList()}
+                                                            onBlur={() => { setIsAdding(false); setNewListTitle(""); }} // Save on click away
+                                                            onKeyDown={(e) => e.key === 'Enter' && createList()}
                                                         />
                                                     </div>
                                                 </div>
@@ -336,13 +572,7 @@ const Home = () => {
                 </div>
             </div >
 
-            <div className="fixed bottom-0 flex flex-row justify-center items-center  w-full h-[10%] pb-10 ">
-                <div className="flex flex-row justify-center gap-5 border w-[90%] py-2 rounded-xl bg-gray-700   ">
-                    <button className="border">hotdog</button>
-                    <button onClick={() => handleAddList()} className="border">Add new List</button>
-                    <button className="border">hotdog</button>
-                </div>
-            </div>
+
         </div >
     )
 }

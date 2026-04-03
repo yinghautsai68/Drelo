@@ -20,7 +20,7 @@ CREATE TABLE lists(
     position INT NOT NULL DEFAULT 0,
 
     label VARCHAR(255) NOT NULL,
-    color VARCHAR(255),
+    color VARCHAR(255) DEFAULT 'black',
 
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -43,6 +43,37 @@ CREATE TABLE cards(
 
     FOREIGN KEY (list_id) REFERENCES lists(id)
 );
+
+DROP TABLE IF EXISTS tags;
+CREATE TABLE tags(
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	user_id INT,
+    color VARCHAR(255) NOT NULL,
+    label VARCHAR(255),
+    is_default BOOLEAN NOT NULL DEFAULT false,
+ 
+    FOREIGN KEY (user_id) REFERENCES users(id)    
+);
+
+INSERT INTO tags (color, is_default) VALUES
+('red', true),
+('blue', true),
+('yellow', true),
+('violet', true),
+('orange', true),
+('green', true);
+
+DROP TABLE IF EXISTS card_tags;
+CREATE TABLE card_tags(
+	id INT AUTO_INCREMENT PRIMARY KEY,
+    tag_id INT NOT NULL,
+    card_id INT NOT NULL,
+    
+    FOREIGN KEY (tag_id) REFERENCES tags(id),
+    FOREIGN KEY (card_id) REFERENCES cards(id)
+);
+
+
 
 
 /*
