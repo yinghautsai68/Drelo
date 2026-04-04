@@ -6,18 +6,28 @@ import type { ListCardsType } from "../types/listscards.types";
 
 
 export const createCard = async (req: Request, res: Response) => {
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
     const result = createCardSchema.safeParse(req.body);
     if (!result.success) {
         return res.status(400).json({ error: result.error });
     }
+
+
     try {
         const { list_id, label } = result.data;
+
+
+
         const [list]: any = await db.query(
-            "SELECT id FROM lists WHERE id = ?",
-            [list_id]
+            "SELECT id FROM lists WHERE id = ? AND user_id = ?",
+            [list_id, userId]
         );
         if (list.length === 0) {
-            return res.status(404).json({ message: "List not found!" });
+            return res.status(404).json({ message: "Unauthorized to add card to this list!" });
         }
 
         const [lastpos]: any = await db.query(
@@ -73,6 +83,11 @@ export const getCards = async (req: Request, res: Response) => {
 }
 
 export const editCard = async (req: Request, res: Response) => {
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
     const result = cardIdParamSchema.safeParse(req.params);
     if (!result.success) {
         return res.status(400).json({ message: result.error });
@@ -95,8 +110,8 @@ export const editCard = async (req: Request, res: Response) => {
         const { list_id, position, due_date, label, status, color } = result2.data;
 
         const [card]: any = await db.query(
-            "SELECT id FROM cards WHERE id =?",
-            [id]
+            "SELECT c.id FROM cards c LEFT JOIN lists l ON c.list_id = l.id WHERE c.id =? AND l.user_id = ?",
+            [id, userId]
         );
         if (card.length === 0) {
             return res.status(404).json({ message: "Card not found!" });
@@ -127,6 +142,10 @@ export const editCard = async (req: Request, res: Response) => {
 }
 
 export const moveCard = async (req: Request, res: Response) => {
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
     try {
         const { lists } = req.body;
         if (!lists) {
@@ -135,6 +154,30 @@ export const moveCard = async (req: Request, res: Response) => {
 
         for (const list of lists) {
             for (const card of list.cards) {
+                const [rows]: any = await db.query(
+                    `
+                    SELECT c.id
+                    FROM cards c
+                    LEFT JOIN lists l ON c.list_id = l.id
+                    WHERE c.id = ? AND l.user_id = ?
+                    `,
+                    [card.id, userId]
+                );
+                if (rows.length === 0) {
+                    return res.status(403).json({ success: false, message: "Unauthorized to move card" });
+                }
+
+                const [newList]: any = await db.query(
+                    `
+                    SELECT id FROM lists WHERE id = ? AND user_id = ?
+                    `,
+                    [card.list_id, userId]
+                )
+                if (newList.length === 0) {
+                    return res.status(403).json({ success: false, message: "Cannot move card to this list" });
+                }
+
+
                 await db.query(
                     "UPDATE cards SET list_id = ?, position = ? WHERE id = ?",
                     [card.list_id, card.position, card.id]
@@ -152,6 +195,11 @@ export const moveCard = async (req: Request, res: Response) => {
 }
 
 export const deleteCard = async (req: Request, res: Response) => {
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
     const result = cardIdParamSchema.safeParse(req.params);
     if (!result.success) {
         return res.status(400).json({ error: result.error });
@@ -161,11 +209,14 @@ export const deleteCard = async (req: Request, res: Response) => {
 
 
         const [card]: any = await db.query(
-            "SELECT id FROM cards WHERE id =?",
-            [id]
+            `SELECT c.id 
+            FROM cards c
+            LEFT JOIN lists l ON c.list_id = l.id 
+            WHERE c.id =? AND l.user_id = ?`,
+            [id, userId]
         );
         if (card.length === 0) {
-            return res.status(404).json({ message: "Card not found!" });
+            return res.status(404).json({ message: "Unauthorized to delete this card!" });
         }
 
 

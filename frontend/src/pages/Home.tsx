@@ -159,7 +159,8 @@ const Home = () => {
                 const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/cards/move`, {
                     method: 'PATCH',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({ lists: newLists })
                 });
@@ -281,7 +282,8 @@ const Home = () => {
             const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/cards`, {
                 method: "POST",
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({ list_id: listId, label: cardLabel })
             })
@@ -325,7 +327,10 @@ const Home = () => {
     const deleteCard = async (listId: number, cardId: number) => {
         try {
             const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/cards/${cardId}`, {
-                method: "DELETE"
+                method: "DELETE",
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
             });
             const result = await response.json();
             if (!result.success) {
