@@ -4,7 +4,9 @@ import type { ListCardsType } from "../types/listscards.types";
 
 export const getListsWithCards = async (req: Request, res: Response) => {
     const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+    }
     try {
         const [idResult]: any = await db.query(
             "SELECT id FROM users WHERE id = ?",

@@ -11,21 +11,27 @@ export const createList = async (req: Request, res: Response) => {
     }
     try {
         const { label } = result.data;
+        const userId = req.user?.id;
+        if (!userId) {
+            return res.status(401).json({ success: false, message: "Unauthorized!" });
+        }
 
         const [user]: any = await db.query(
-            "SELECT id FROM users WHERE id = 1 "
+            "SELECT id FROM users WHERE id = ? ",
+            [userId]
         );
         if (user.length === 0) {
             return res.status(404).json({ message: "User does not exists!" });
         }
         const [listCount]: any = await db.query(
-            "SELECT COUNT(*) AS total_lists FROM lists WHERE user_id = 1",
+            "SELECT COUNT(*) AS total_lists FROM lists WHERE user_id = ?",
+            [userId]
         )
         const position = listCount[0].total_lists;
 
         const [insertList]: any = await db.query(
             "INSERT INTO lists (user_id, position, label) VALUES (?,?,?) ",
-            [1, position, label]
+            [userId, position, label]
         );
 
         const [newList]: any = await db.query(
@@ -33,7 +39,7 @@ export const createList = async (req: Request, res: Response) => {
             [insertList.insertId]
         );
 
-        res.status(201).json({ success: true, message: "List created successsadfasdsfully!", data: newList[0] });
+        res.status(201).json({ success: true, message: "List created successfully!", data: newList[0] });
 
     } catch (error) {
         console.log(error);
@@ -75,21 +81,21 @@ export const editList = async (req: Request, res: Response) => {
     }
     try {
         const { id } = idResult.data;
-        const { user_id, position, label, color } = result.data;
+        const userId = req.user?.id;
+        const { position, label, color } = result.data;
 
         const [editResult]: any = await db.query(
             `
             UPDATE lists SET
-            user_id = COALESCE(?, user_id),
             position = COALESCE(?, position),
             label = COALESCE(?, label),
             color = COALESCE(?,color)
-            WHERE id = ?
+            WHERE id = ? AND user_id = ?
             `,
-            [user_id, position, label, color, id]
+            [position, label, color, id, userId]
         );
         if (editResult.affectedRows === 0) {
-            return res.status(400).json({ message: "Edit failed" });
+            return res.status(403).json({ success: false, message: "Cannot edit this list" });
         }
 
         res.status(200).json({ success: true, message: "Edit list successfully" });
@@ -100,16 +106,23 @@ export const editList = async (req: Request, res: Response) => {
 
 export const moveList = async (req: Request, res: Response) => {
     const { lists } = req.body;
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ success: false, message: "Unauthorized!" });
+    }
     try {
         for (const list of lists) {
-            await db.query(
-                "UPDATE lists SET position = ? WHERE id = ?",
-                [list.position, list.id]
+            const [result]: any = await db.query(
+                "UPDATE lists SET position = ? WHERE id = ? AND user_id = ?",
+                [list.position, list.id, userId]
             )
+
+            if (result.affectedRows === 0) {
+                return res.status(403).json({ success: false, message: "Unauthorized to move list " })
+            }
         }
 
-
-        res.status(200).json({ success: true, message: "Edited list successfsully!" });
+        res.status(200).json({ success: true, message: "Edited list successfully!" });
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Server error!" });
@@ -125,14 +138,20 @@ export const deleteList = async (req: Request, res: Response) => {
     }
     try {
         const { id } = result.data;
+        const userId = req.user?.id;
+        if (!userId) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
 
         const [rows]: any = await db.query(
-            "SELECT id FROM lists WHERE id = ?",
-            [id]
+            "SELECT id FROM lists WHERE id = ? AND user_id = ?",
+            [id, userId]
         )
         if (rows.length === 0) {
-            return res.status(404).json({ message: "List not found!" });
+            return res.status(403).json({ message: "Unauthorized to delete this list " });
         }
+
+
 
         await db.query(
             "DELETE FROM card_tags WHERE card_id IN (SELECT id from cards WHERE list_id = ?)",

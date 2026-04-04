@@ -121,7 +121,8 @@ const Home = () => {
                 const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/lists`, {
                     method: "PATCH",
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
                         lists: newLists.map((list, index) => ({
@@ -184,7 +185,8 @@ const Home = () => {
         const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/lists`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ label: newListTitle })
         })
@@ -259,7 +261,7 @@ const Home = () => {
                 method: "DELETE",
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Beaer ${token}`
+                    'Authorization': `Bearer ${token}`
                 }
             });
             const result = await response.json();
