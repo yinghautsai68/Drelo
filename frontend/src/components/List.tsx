@@ -106,7 +106,7 @@ const List = ({ id, list, index, cards, tagOptions, updateList, deleteList, crea
                                         <div
                                             {...provided.droppableProps}
                                             ref={provided.innerRef}
-                                            className="flex flex-col gap-2 overflow-y-auto"
+                                            className="flex flex-col gap-2 min-h-1 overflow-y-auto"
                                         >
                                             {
                                                 cards.map((card, cardIndex) => {
