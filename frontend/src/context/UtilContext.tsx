@@ -1,6 +1,7 @@
 import { createContext } from "react";
 
 interface UtilContextType {
+
     formatDate: (date: string | null) => string | null;
     formatFormDate: (date: string | null) => string | null;
 }
